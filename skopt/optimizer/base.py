@@ -260,6 +260,8 @@ def base_minimize(func, dimensions, base_estimator,
             result = optimizer.tell(next_x, next_y)
         else:
             (next_y, constraints) = func(next_x)
+            if constraints > 0:
+                next_y = np.inf
             result = optimizer.tell(next_x, next_y, constraints=constraints)
         result.specs = specs
         if eval_callbacks(callbacks, result):
