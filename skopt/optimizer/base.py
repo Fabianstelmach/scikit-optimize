@@ -22,7 +22,7 @@ def base_minimize(func, dimensions, base_estimator,
                   acq_func="EI", acq_optimizer="lbfgs",
                   x0=None, y0=None, random_state=None, verbose=False,
                   callback=None, n_points=10000, n_restarts_optimizer=5,
-                  xi=0.01, kappa=1.96, n_jobs=1):
+                  xi=0.01, kappa=1.96, n_jobs=1, constraint_estimator=None):
     """
     Parameters
     ----------
@@ -217,7 +217,8 @@ def base_minimize(func, dimensions, base_estimator,
                           acq_func=acq_func, acq_optimizer=acq_optimizer,
                           random_state=random_state,
                           acq_optimizer_kwargs=acq_optimizer_kwargs,
-                          acq_func_kwargs=acq_func_kwargs)
+                          acq_func_kwargs=acq_func_kwargs,
+                          constraint_estimator=constraint_estimator)
     # check x0: element-wise data type, dimensionality
     assert all(isinstance(p, Iterable) for p in x0)
     if not all(len(p) == optimizer.space.n_dims for p in x0):
@@ -254,8 +255,12 @@ def base_minimize(func, dimensions, base_estimator,
     # Optimize
     for n in range(n_calls):
         next_x = optimizer.ask()
-        next_y = func(next_x)
-        result = optimizer.tell(next_x, next_y)
+        if constraint_estimator is None:
+            next_y = func(next_x)
+            result = optimizer.tell(next_x, next_y)
+        else:
+            (next_y, constraints) = func(next_x)
+            result = optimizer.tell(next_x, next_y, constraints=constraints)
         result.specs = specs
         if eval_callbacks(callbacks, result):
             break

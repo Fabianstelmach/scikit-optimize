@@ -7,6 +7,8 @@ import numpy as np
 
 from scipy.optimize import fmin_l_bfgs_b
 
+from scipy.stats import norm
+
 from sklearn.base import clone
 from sklearn.base import is_regressor
 from sklearn.externals.joblib import Parallel, delayed
@@ -139,7 +141,7 @@ class Optimizer(object):
                  acq_func="gp_hedge",
                  acq_optimizer="auto",
                  random_state=None, acq_func_kwargs=None,
-                 acq_optimizer_kwargs=None):
+                 acq_optimizer_kwargs=None, constraint_estimator=None):
 
         self.rng = check_random_state(random_state)
 
@@ -192,6 +194,8 @@ class Optimizer(object):
         if not is_regressor(base_estimator) and base_estimator is not None:
             raise ValueError(
                 "%s has to be a regressor." % base_estimator)
+
+        self.constraint_estimator_ = constraint_estimator
 
         # treat per second acqusition function specially
         is_multi_regressor = isinstance(base_estimator, MultiOutputRegressor)
@@ -250,8 +254,10 @@ class Optimizer(object):
         # Initialize storage for optimization
 
         self.models = []
+        self.constraint_models = []
         self.Xi = []
         self.yi = []
+        self.constraints = []
 
         # Initialize cache for `ask` method responses
 
@@ -402,7 +408,7 @@ class Optimizer(object):
             # return point computed from last call to tell()
             return next_x
 
-    def tell(self, x, y, fit=True):
+    def tell(self, x, y, constraints=None, fit=True):
         """Record an observation (or several) of the objective function.
 
         Provide values of the objective function at points suggested by `ask()`
@@ -430,7 +436,7 @@ class Optimizer(object):
             the optimizer irrespective of the value of `fit`.
         """
         check_x_in_space(x, self.space)
-        self._check_y_is_valid(x, y)
+        # self._check_y_is_valid(x, y)
 
         # take the logarithm of the computation times
         if "ps" in self.acq_func:
@@ -440,9 +446,9 @@ class Optimizer(object):
                 y = list(y)
                 y[1] = log(y[1])
 
-        return self._tell(x, y, fit=fit)
+        return self._tell(x, y, constraints=constraints, fit=fit)
 
-    def _tell(self, x, y, fit=True):
+    def _tell(self, x, y, constraints=None, fit=True):
         """Perform the actual work of incorporating one or more new points.
         See `tell()` for the full description.
 
@@ -462,10 +468,14 @@ class Optimizer(object):
         elif is_listlike(y) and is_2Dlistlike(x):
             self.Xi.extend(x)
             self.yi.extend(y)
+            if constraints is not None:
+                self.constraints.extend(constraints)
             self._n_initial_points -= len(y)
         elif is_listlike(x):
             self.Xi.append(x)
             self.yi.append(y)
+            if constraints is not None:
+                self.constraints.append(constraints)
             self._n_initial_points -= 1
         else:
             raise ValueError("Type of arguments `x` (%s) and `y` (%s) "
@@ -480,14 +490,20 @@ class Optimizer(object):
            self.base_estimator_ is not None):
             transformed_bounds = np.array(self.space.transformed_bounds)
             est = clone(self.base_estimator_)
+            if constraints is not None:
+                est_c = clone(self.constraint_estimator_)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 est.fit(self.space.transform(self.Xi), self.yi)
 
+                if constraints is not None:
+                    est_c.fit(self.space.transform(self.Xi), self.constraints)
+
             if hasattr(self, "next_xs_") and self.acq_func == "gp_hedge":
                 self.gains_ -= est.predict(np.vstack(self.next_xs_))
             self.models.append(est)
+            self.constraint_models.append(est)
 
             # even with BFGS as optimizer we want to sample a large number
             # of points and then pick the best ones as starting points
@@ -500,14 +516,23 @@ class Optimizer(object):
                     X=X, model=est, y_opt=np.min(self.yi),
                     acq_func=cand_acq_func,
                     acq_func_kwargs=self.acq_func_kwargs)
+
+                if self.constraint_estimator_ is not None:
+                    (means, stds) = est_c.predict(X, return_std=True)
+                    scaled = np.divide(means, stds)
+                    constraint_values = norm.cdf(scaled)
+                    values = np.multiply(values, constraint_values)
+
                 # Find the minimum of the acquisition function by randomly
                 # sampling points from the space
                 if self.acq_optimizer == "sampling":
-                    next_x = X[np.argmin(values)]
+                    i = np.argmin(values)
+                    next_x = X[i]
 
                 # Use BFGS to find the mimimum of the acquisition function, the
                 # minimization starts from `n_restarts_optimizer` different
                 # points and the best minimum is used
+
                 elif self.acq_optimizer == "lbfgs":
                     x0 = X[np.argsort(values)[:self.n_restarts_optimizer]]
 
