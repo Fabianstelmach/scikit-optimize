@@ -261,7 +261,7 @@ def base_minimize(func, dimensions, base_estimator,
         else:
             (next_y, constraints) = func(next_x)
             if constraints > 0:
-                next_y = np.inf
+                next_y = np.finfo('f').max
             result = optimizer.tell(next_x, next_y, constraints=constraints)
         result.specs = specs
         if eval_callbacks(callbacks, result):
