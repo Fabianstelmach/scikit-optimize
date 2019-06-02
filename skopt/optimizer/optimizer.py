@@ -141,10 +141,13 @@ class Optimizer(object):
                  acq_func="gp_hedge",
                  acq_optimizer="auto",
                  random_state=None, acq_func_kwargs=None,
-                 acq_optimizer_kwargs=None, constraint_estimator=None):
+                 acq_optimizer_kwargs=None, constraint_estimator=None,
+                 solution_processor=None):
 
         self.rng = check_random_state(random_state)
 
+        self.solution_processor = solution_processor
+        
         # Configure acquisition function
 
         # Store and creat acquisition function set
@@ -283,6 +286,7 @@ class Optimizer(object):
             acq_func_kwargs=self.acq_func_kwargs,
             acq_optimizer_kwargs=self.acq_optimizer_kwargs,
             random_state=random_state,
+            solution_processor=self.solution_processor
         )
 
         if hasattr(self, "gains_"):
@@ -355,7 +359,6 @@ class Optimizer(object):
         for i in range(n_points):
             x = opt.ask()
             X.append(x)
-
             ti_available = "ps" in self.acq_func and len(opt.yi) > 0
             ti = [t for (_, t) in opt.yi] if ti_available else None
 
@@ -391,7 +394,12 @@ class Optimizer(object):
         if self._n_initial_points > 0 or self.base_estimator_ is None:
             # this will not make a copy of `self.rng` and hence keep advancing
             # our random state.
-            return self.space.rvs(random_state=self.rng)[0]
+            x = np.array(self.space.rvs(random_state=self.rng)[0])
+            if self.solution_processor is not None:
+                x = np.array(x)
+                self.solution_processor(x)
+                x = list(x)
+            return x
 
         else:
             if not self.models:
@@ -509,6 +517,10 @@ class Optimizer(object):
             # of points and then pick the best ones as starting points
             X = self.space.transform(self.space.rvs(
                 n_samples=self.n_points, random_state=self.rng))
+
+            if self.solution_processor is not None:
+                for i in range(len(X)):
+                    self.solution_processor(X[i])
 
             self.next_xs_ = []
             for cand_acq_func in self.cand_acq_funcs_:

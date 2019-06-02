@@ -14,7 +14,8 @@ def gp_minimize(func, dimensions, base_estimator=None,
                 acq_func="gp_hedge", acq_optimizer="auto", x0=None, y0=None,
                 random_state=None, verbose=False, callback=None,
                 n_points=10000, n_restarts_optimizer=5, xi=0.01, kappa=1.96,
-                noise="gaussian", n_jobs=1, constrained=False):
+                noise="gaussian", n_jobs=1, constrained=False,
+                solution_processor=None):
     """Bayesian optimization using Gaussian Processes.
 
     If every function evaluation is expensive, for instance
@@ -232,4 +233,5 @@ def gp_minimize(func, dimensions, base_estimator=None,
         n_points=n_points, n_random_starts=n_random_starts,
         n_restarts_optimizer=n_restarts_optimizer,
         x0=x0, y0=y0, random_state=rng, verbose=verbose,
-        callback=callback, n_jobs=n_jobs, constraint_estimator=constraint_estimator)
+        callback=callback, n_jobs=n_jobs, constraint_estimator=constraint_estimator,
+        solution_processor=solution_processor)

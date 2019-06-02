@@ -22,7 +22,8 @@ def base_minimize(func, dimensions, base_estimator,
                   acq_func="EI", acq_optimizer="lbfgs",
                   x0=None, y0=None, random_state=None, verbose=False,
                   callback=None, n_points=10000, n_restarts_optimizer=5,
-                  xi=0.01, kappa=1.96, n_jobs=1, constraint_estimator=None):
+                  xi=0.01, kappa=1.96, n_jobs=1, constraint_estimator=None,
+                  solution_processor=None):
     """
     Parameters
     ----------
@@ -218,7 +219,8 @@ def base_minimize(func, dimensions, base_estimator,
                           random_state=random_state,
                           acq_optimizer_kwargs=acq_optimizer_kwargs,
                           acq_func_kwargs=acq_func_kwargs,
-                          constraint_estimator=constraint_estimator)
+                          constraint_estimator=constraint_estimator,
+                          solution_processor=solution_processor)
     # check x0: element-wise data type, dimensionality
     assert all(isinstance(p, Iterable) for p in x0)
     if not all(len(p) == optimizer.space.n_dims for p in x0):
