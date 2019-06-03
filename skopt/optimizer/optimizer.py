@@ -527,7 +527,7 @@ class Optimizer(object):
                 if self.constraint_estimator_ is not None:
                     mask = np.array(self.constraints) >= 0
                     if np.any(mask):
-                        y_opt = np.min(self.yi[mask])
+                        y_opt = np.min(np.array(self.yi)[mask])
                         values = _gaussian_acquisition(
                             X=X, model=est, y_opt=y_opt,
                             acq_func=cand_acq_func,
