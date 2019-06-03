@@ -30,7 +30,7 @@ def base_minimize(func, dimensions, base_estimator,
     * `func` [callable]:
         Function to minimize. Should take a single list of parameters
         and return the objective value.
-    
+
         If you have a search-space where all dimensions have names,
         then you can use `skopt.utils.use_named_args` as a decorator
         on your objective function, in order to call it directly
@@ -262,8 +262,6 @@ def base_minimize(func, dimensions, base_estimator,
             result = optimizer.tell(next_x, next_y)
         else:
             (next_y, constraints) = func(next_x)
-            if constraints > 0:
-                next_y = np.finfo('f').max
             result = optimizer.tell(next_x, next_y, constraints=constraints)
         result.specs = specs
         if eval_callbacks(callbacks, result):

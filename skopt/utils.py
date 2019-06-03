@@ -25,7 +25,7 @@ __all__ = (
 )
 
 
-def create_result(Xi, yi, space=None, rng=None, specs=None, models=None):
+def create_result(Xi, yi, space=None, rng=None, specs=None, models=None, constraints=None):
     """
     Initialize an `OptimizeResult` object.
 
@@ -59,10 +59,21 @@ def create_result(Xi, yi, space=None, rng=None, specs=None, models=None):
     if np.ndim(yi) == 2:
         res.log_time = np.ravel(yi[:, 1])
         yi = np.ravel(yi[:, 0])
-    best = np.argmin(yi)
+
+    if constraints is not None:
+        mask = np.array(constraints) >= 0
+        if np.any(mask):
+            res.constrained_solution_found = True
+            best = np.argmin(yi[mask])
+        else:
+            res.constrained_solution_found = False
+            best = np.argmin(yi)
+    else:
+        best = np.argmin(yi)
     res.x = Xi[best]
     res.fun = yi[best]
     res.func_vals = yi
+    res.constraints = constraints
     res.x_iters = Xi
     res.models = models
     res.space = space
@@ -255,8 +266,8 @@ def has_gradients(estimator):
     estimator: sklearn BaseEstimator instance.
     """
     tree_estimators = (
-            ExtraTreesRegressor, RandomForestRegressor,
-            GradientBoostingQuantileRegressor
+        ExtraTreesRegressor, RandomForestRegressor,
+        GradientBoostingQuantileRegressor
     )
 
     # cook_estimator() returns None for "dummy minimize" aka random values only
@@ -491,13 +502,13 @@ def normalize_dimensions(dimensions):
                     Real(dimension.low, dimension.high, dimension.prior,
                          name=dimension.name,
                          transform="normalize")
-                    )
+                )
             elif isinstance(dimension, Integer):
                 transformed_dimensions.append(
                     Integer(dimension.low, dimension.high,
                             name=dimension.name,
                             transform="normalize")
-                    )
+                )
             else:
                 raise RuntimeError("Unknown dimension type "
                                    "(%s)" % type(dimension))

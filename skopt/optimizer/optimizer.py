@@ -136,6 +136,7 @@ class Optimizer(object):
         to sample points, bounds, and type of parameters.
 
     """
+
     def __init__(self, dimensions, base_estimator="gp",
                  n_random_starts=None, n_initial_points=10,
                  acq_func="gp_hedge",
@@ -147,7 +148,7 @@ class Optimizer(object):
         self.rng = check_random_state(random_state)
 
         self.solution_processor = solution_processor
-        
+
         # Configure acquisition function
 
         # Store and creat acquisition function set
@@ -221,7 +222,7 @@ class Optimizer(object):
                              "'sampling', got {0}".format(acq_optimizer))
 
         if (not has_gradients(self.base_estimator_) and
-            acq_optimizer != "sampling"):
+                acq_optimizer != "sampling"):
             raise ValueError("The regressor {0} should run with "
                              "acq_optimizer"
                              "='sampling'.".format(type(base_estimator)))
@@ -495,7 +496,7 @@ class Optimizer(object):
         # after being "told" n_initial_points we switch from sampling
         # random points to using a surrogate model
         if (fit and self._n_initial_points <= 0 and
-           self.base_estimator_ is not None):
+                self.base_estimator_ is not None):
             transformed_bounds = np.array(self.space.transformed_bounds)
             est = clone(self.base_estimator_)
             if constraints is not None:
@@ -521,20 +522,29 @@ class Optimizer(object):
             if self.solution_processor is not None:
                 for i in range(len(X)):
                     self.solution_processor(X[i])
-
             self.next_xs_ = []
             for cand_acq_func in self.cand_acq_funcs_:
-                values = _gaussian_acquisition(
-                    X=X, model=est, y_opt=np.min(self.yi),
-                    acq_func=cand_acq_func,
-                    acq_func_kwargs=self.acq_func_kwargs)
+                if self.constraint_estimator_ is not None:
+                    mask = np.array(self.constraints) >= 0
+                    if np.any(mask):
+                        y_opt = np.min(self.yi[mask])
+                        values = _gaussian_acquisition(
+                            X=X, model=est, y_opt=y_opt,
+                            acq_func=cand_acq_func,
+                            acq_func_kwargs=self.acq_func_kwargs)
+                    else:
+                        values = np.ones(X.shape[0])
+                else:
+                    values = _gaussian_acquisition(
+                        X=X, model=est, y_opt=np.min(self.yi),
+                        acq_func=cand_acq_func,
+                        acq_func_kwargs=self.acq_func_kwargs)
 
                 if self.constraint_estimator_ is not None:
                     (means, stds) = est_c.predict(X, return_std=True)
                     scaled = np.divide(means, stds)
                     constraint_values = norm.cdf(scaled)
                     values = np.multiply(values, constraint_values)
-
                 # Find the minimum of the acquisition function by randomly
                 # sampling points from the space
                 if self.acq_optimizer == "sampling":
@@ -588,7 +598,7 @@ class Optimizer(object):
 
         # Pack results
         return create_result(self.Xi, self.yi, self.space, self.rng,
-                             models=self.models)
+                             models=self.models, constraints=self.constraints)
 
     def _check_y_is_valid(self, x, y):
         """Check if the shape and types of x and y are consistent."""
