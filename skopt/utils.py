@@ -63,15 +63,20 @@ def create_result(Xi, yi, space=None, rng=None, specs=None, models=None, constra
     if constraints is not None:
         mask = np.array(constraints) >= 0
         if np.any(mask):
+            yi_masked = yi[mask]
             res.constrained_solution_found = True
-            best = np.argmin(yi[mask])
+            best = np.argmin(yi_masked)
+            res.x = np.array(Xi)[mask][best]
+            res.fun = yi_masked[best]
         else:
             res.constrained_solution_found = False
             best = np.argmin(yi)
+            res.x = Xi[best]
+            res.fun = yi[best]
     else:
         best = np.argmin(yi)
-    res.x = Xi[best]
-    res.fun = yi[best]
+        res.x = Xi[best]
+        res.fun = yi[best]
     res.func_vals = yi
     res.constraints = constraints
     res.x_iters = Xi
