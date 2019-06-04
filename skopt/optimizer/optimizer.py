@@ -521,7 +521,10 @@ class Optimizer(object):
 
             if self.solution_processor is not None:
                 for i in range(len(X)):
+                    x = np.array(X[i])
                     self.solution_processor(X[i])
+                    x = list(X[i])
+            
             self.next_xs_ = []
             for cand_acq_func in self.cand_acq_funcs_:
                 if self.constraint_estimator_ is not None:
