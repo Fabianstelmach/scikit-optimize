@@ -397,9 +397,8 @@ class Optimizer(object):
             # our random state.
             x = np.array(self.space.rvs(random_state=self.rng)[0])
             if self.solution_processor is not None:
-                x = np.array(x)
-                self.solution_processor(x)
-                x = list(x)
+                x = self.solution_processor(x)
+                x = list(np.concatenate(x))
             return x
 
         else:
@@ -521,10 +520,9 @@ class Optimizer(object):
 
             if self.solution_processor is not None:
                 for i in range(len(X)):
-                    x = np.array(X[i])
-                    self.solution_processor(X[i])
-                    x = list(X[i])
-            
+                    x = self.solution_processor(X[i])
+                    X[i] = list(np.concatenate(x))
+
             self.next_xs_ = []
             for cand_acq_func in self.cand_acq_funcs_:
                 if self.constraint_estimator_ is not None:
