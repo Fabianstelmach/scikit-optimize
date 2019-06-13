@@ -549,8 +549,11 @@ class Optimizer(object):
                 # Find the minimum of the acquisition function by randomly
                 # sampling points from the space
                 if self.acq_optimizer == "sampling":
-                    i = np.argmin(values)
-                    next_x = X[i]
+                    order = np.argsort(values)
+                    for i in range(order.size):
+                        next_x = X[i]
+                        if list(X[i]) not in self.Xi:
+                            break
 
                 # Use BFGS to find the mimimum of the acquisition function, the
                 # minimization starts from `n_restarts_optimizer` different
